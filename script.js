@@ -1,943 +1,1217 @@
-/**
- * Nexus Games - Main Application
- * Vanilla ES6+ | IIFE Pattern | Strict Mode
- * @version 1.0.0
- */
-
 'use strict';
 
-(function NexusGames() {
-  
-  // ===== Application State =====
-  const AppState = {
-    activeGame: null,
-    modalOpen: false,
-    previousActiveElement: null,
-    scores: {
-      clicker: [],
-      memory: []
-    },
-    gameInstances: {
-      clicker: null,
-      memory: null
-    }
-  };
+/**
+ * Nexus Games v2.0 - Core Application
+ * Lead Frontend Engineer & QA Architect Implementation
+ */
 
-  // ===== DOM Elements Cache =====
-  const DOM = {
-    // Navigation
-    navToggle: null,
-    navMenu: null,
-    navLinks: null,
-    
-    // Modal
-    modal: null,
-    modalOverlay: null,
-    modalClose: null,
-    modalContent: null,
-    modalResult: null,
-    modalTitle: null,
-    modalMessage: null,
-    modalRestart: null,
-    modalCloseBtn: null,
-    
-    // Scores
-    scoreTabs: null,
-    scorePanels: null,
-    clickerHighscores: null,
-    memoryHighscores: null,
-    clickerEmpty: null,
-    memoryEmpty: null,
-    
-    // Footer
-    currentYear: null
-  };
-
-  // ===== Constants =====
-  const CONSTANTS = {
-    STORAGE_KEY: 'nexus_games_scores',
-    CLICKER_DURATION: 10000, // 10 seconds
-    CLICKER_THRESHOLDS: {
-      legend: 80,
-      pro: 60,
-      beginner: 40
-    },
-    MEMORY_GRID_SIZE: 4, // 4x4 = 16 cards, 8 pairs
-    MEMORY_EMOJIS: ['🎮', '🎯', '🎲', '🃏', '🎪', '🎨', '🎭', '🎵'],
-    FOCUSABLE_SELECTORS: 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  };
-
-  // ===== Utility Functions =====
-  
-  /**
-   * Sanitize and escape HTML to prevent XSS
-   * @param {string} str - Raw string input
-   * @returns {string} - Escaped string safe for textContent
-   */
-  const sanitize = (str) => {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  };
-
-  /**
-   * Fisher-Yates shuffle algorithm for array randomization
-   * @param {Array} array - Array to shuffle
-   * @returns {Array} - New shuffled array
-   */
-  const shuffle = (array) => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  };
-
-  /**
-   * Format number with leading zeros
-   * @param {number} num - Number to format
-   * @param {number} size - Desired length
-   * @returns {string} - Formatted string
-   */
-  const formatNumber = (num, size = 2) => num.toString().padStart(size, '0');
-
-  /**
-   * Format milliseconds to MM:SS
-   * @param {number} ms - Milliseconds
-   * @returns {string} - Formatted time string
-   */
-  const formatTime = (ms) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${formatNumber(minutes)}:${formatNumber(seconds)}`;
-  };
-
-  // ===== Storage Management =====
-  
-  /**
-   * Load scores from localStorage with error handling
-   */
-  const loadScores = () => {
-    try {
-      const stored = localStorage.getItem(CONSTANTS.STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        AppState.scores = {
-          clicker: Array.isArray(parsed.clicker) ? parsed.clicker : [],
-          memory: Array.isArray(parsed.memory) ? parsed.memory : []
+(function() {
+    // ============================================
+    // STATE CONTROLLER (PubSub Pattern)
+    // ============================================
+    const StateController = (function() {
+        const subscribers = new Map();
+        let state = {
+            currentView: 'home',
+            soundEnabled: true,
+            highContrast: false,
+            focusMode: false,
+            username: 'Jogador',
+            xp: 0,
+            level: 1,
+            matches: [],
+            reactionBest: null,
+            reactionLast: null,
+            reactionAverage: null,
+            reactionTrend: [],
+            patternBest: null,
+            patternRound: 0
         };
-      }
-    } catch (error) {
-      console.warn('Failed to load scores:', error);
-      AppState.scores = { clicker: [], memory: [] };
-    }
-  };
 
-  /**
-   * Save scores to localStorage with error handling
-   */
-  const saveScores = () => {
-    try {
-      localStorage.setItem(CONSTANTS.STORAGE_KEY, JSON.stringify(AppState.scores));
-    } catch (error) {
-      console.warn('Failed to save scores:', error);
-    }
-  };
-
-  /**
-   * Add new score and maintain top 10
-   * @param {string} game - Game identifier
-   * @param {number} score - Numeric score (higher is better for clicker, lower for memory)
-   * @param {object} meta - Additional metadata
-   */
-  const addScore = (game, score, meta = {}) => {
-    const scoreEntry = {
-      id: Date.now(),
-      score,
-      date: new Date().toISOString(),
-      ...meta
-    };
-    
-    const scores = AppState.scores[game] || [];
-    scores.push(scoreEntry);
-    
-    // Sort and limit to top 10
-    if (game === 'clicker') {
-      // Higher score is better for clicker
-      scores.sort((a, b) => b.score - a.score);
-    } else {
-      // Lower score (moves) is better for memory
-      scores.sort((a, b) => a.score - b.score);
-    }
-    
-    AppState.scores[game] = scores.slice(0, 10);
-    saveScores();
-    renderHighScores();
-  };
-
-  // ===== UI Rendering =====
-  
-  /**
-   * Render high scores lists for both games
-   */
-  const renderHighScores = () => {
-    // Clicker scores
-    if (DOM.clickerHighscores) {
-      DOM.clickerHighscores.innerHTML = '';
-      const scores = AppState.scores.clicker;
-      
-      if (scores.length === 0) {
-        DOM.clickerEmpty.hidden = false;
-      } else {
-        DOM.clickerEmpty.hidden = true;
-        scores.forEach((entry, index) => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <span class="highscores-list__rank">#${index + 1}</span>
-            <span class="highscores-list__score">${entry.score} cliques</span>
-            <span class="highscores-list__meta">${new Date(entry.date).toLocaleDateString('pt-BR')}</span>
-          `;
-          DOM.clickerHighscores.appendChild(li);
-        });
-      }
-    }
-    
-    // Memory scores
-    if (DOM.memoryHighscores) {
-      DOM.memoryHighscores.innerHTML = '';
-      const scores = AppState.scores.memory;
-      
-      if (scores.length === 0) {
-        DOM.memoryEmpty.hidden = false;
-      } else {
-        DOM.memoryEmpty.hidden = true;
-        scores.forEach((entry, index) => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <span class="highscores-list__rank">#${index + 1}</span>
-            <span class="highscores-list__score">${entry.score} movimentos</span>
-            <span class="highscores-list__meta">${formatTime(entry.time)} • ${new Date(entry.date).toLocaleDateString('pt-BR')}</span>
-          `;
-          DOM.memoryHighscores.appendChild(li);
-        });
-      }
-    }
-  };
-
-  /**
-   * Update footer year dynamically
-   */
-  const updateFooterYear = () => {
-    if (DOM.currentYear) {
-      DOM.currentYear.textContent = new Date().getFullYear();
-    }
-  };
-
-  // ===== Modal Management =====
-  
-  /**
-   * Open modal with focus trap and accessibility
-   * @param {HTMLElement} trigger - Element that triggered the modal
-   */
-  const openModal = (trigger = null) => {
-    if (!DOM.modal) return;
-    
-    AppState.previousActiveElement = document.activeElement;
-    AppState.modalOpen = true;
-    
-    DOM.modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    
-    // Focus first focusable element or close button
-    setTimeout(() => {
-      const focusable = DOM.modalContent?.querySelector(CONSTANTS.FOCUSABLE_SELECTORS);
-      if (focusable) focusable.focus();
-    }, 100);
-    
-    // Add event listeners
-    document.addEventListener('keydown', handleModalKeydown);
-    DOM.modalOverlay?.addEventListener('click', closeModal);
-  };
-
-  /**
-   * Close modal and restore focus
-   */
-  const closeModal = () => {
-    if (!DOM.modal || !AppState.modalOpen) return;
-    
-    AppState.modalOpen = false;
-    DOM.modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    
-    // Remove event listeners
-    document.removeEventListener('keydown', handleModalKeydown);
-    DOM.modalOverlay?.removeEventListener('click', closeModal);
-    
-    // Restore focus
-    if (AppState.previousActiveElement && typeof AppState.previousActiveElement.focus === 'function') {
-      AppState.previousActiveElement.focus();
-    }
-    
-    // Reset modal content
-    resetModal();
-  };
-
-  /**
-   * Handle keyboard navigation in modal
-   * @param {KeyboardEvent} event
-   */
-  const handleModalKeydown = (event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      closeModal();
-      return;
-    }
-    
-    if (event.key === 'Tab') {
-      const focusable = DOM.modal?.querySelectorAll(CONSTANTS.FOCUSABLE_SELECTORS);
-      if (!focusable || focusable.length === 0) return;
-      
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-  };
-
-  /**
-   * Reset modal to initial state
-   */
-  const resetModal = () => {
-    if (DOM.modalContent) DOM.modalContent.innerHTML = '';
-    if (DOM.modalResult) DOM.modalResult.hidden = true;
-    if (DOM.modalContent) DOM.modalContent.hidden = false;
-    
-    // Cleanup game instances
-    if (AppState.gameInstances.clicker) {
-      AppState.gameInstances.clicker.destroy?.();
-      AppState.gameInstances.clicker = null;
-    }
-    if (AppState.gameInstances.memory) {
-      AppState.gameInstances.memory.destroy?.();
-      AppState.gameInstances.memory = null;
-    }
-    AppState.activeGame = null;
-  };
-
-  /**
-   * Show result screen in modal
-   * @param {string} title - Result title
-   * @param {string} message - Result message with HTML support (sanitized)
-   * @param {boolean} showRestart - Whether to show restart button
-   */
-  const showResult = (title, message, showRestart = true) => {
-    if (DOM.modalContent) DOM.modalContent.hidden = true;
-    if (DOM.modalResult) DOM.modalResult.hidden = false;
-    if (DOM.modalTitle) DOM.modalTitle.textContent = title;
-    if (DOM.modalMessage) DOM.modalMessage.innerHTML = sanitize(message);
-    if (DOM.modalRestart) DOM.modalRestart.hidden = !showRestart;
-  };
-
-  // ===== Game: Clicker Speed =====
-  
-  /**
-   * Clicker Speed Game Class
-   */
-  class ClickerGame {
-    constructor(container) {
-      this.container = container;
-      this.score = 0;
-      this.timeRemaining = CONSTANTS.CLICKER_DURATION;
-      this.isActive = false;
-      this.timerId = null;
-      this.startTime = null;
-      
-      this.init();
-    }
-    
-    init() {
-      this.render();
-      this.bindEvents();
-    }
-    
-    render() {
-      this.container.innerHTML = `
-        <div class="clicker__container">
-          <div class="clicker__timer" id="clicker-timer" aria-live="polite">10.0s</div>
-          <button 
-            id="clicker-btn" 
-            class="clicker__button" 
-            aria-label="Clique rapidamente para marcar pontos"
-            type="button"
-            disabled
-          >
-            CLIQUE!
-          </button>
-          <div class="clicker__score" id="clicker-score" aria-live="assertive">0</div>
-          <p class="clicker__instructions">Clique o máximo que puder em 10 segundos!</p>
-          <button id="clicker-start" class="btn btn--primary" type="button">Iniciar</button>
-        </div>
-      `;
-      
-      this.elements = {
-        timer: this.container.querySelector('#clicker-timer'),
-        button: this.container.querySelector('#clicker-btn'),
-        score: this.container.querySelector('#clicker-score'),
-        startBtn: this.container.querySelector('#clicker-start')
-      };
-    }
-    
-    bindEvents() {
-      this.elements.startBtn?.addEventListener('click', () => this.start());
-      this.elements.button?.addEventListener('click', () => this.handleClick());
-      
-      // Anti-cheat: prevent text selection and context menu
-      this.container.addEventListener('selectstart', (e) => e.preventDefault());
-      this.container.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
-    
-    start() {
-      if (this.isActive) return;
-      
-      this.score = 0;
-      this.timeRemaining = CONSTANTS.CLICKER_DURATION;
-      this.isActive = true;
-      this.startTime = performance.now();
-      
-      // Update UI
-      this.elements.score.textContent = '0';
-      this.elements.button.disabled = false;
-      this.elements.startBtn.disabled = true;
-      this.elements.startBtn.textContent = 'Jogando...';
-      
-      // Start timer
-      this.updateTimer();
-      this.timerId = setInterval(() => this.updateTimer(), 100);
-    }
-    
-    updateTimer() {
-      const elapsed = performance.now() - this.startTime;
-      const remaining = Math.max(0, CONSTANTS.CLICKER_DURATION - elapsed);
-      
-      this.timeRemaining = remaining;
-      this.elements.timer.textContent = (remaining / 1000).toFixed(1) + 's';
-      
-      if (remaining <= 0) {
-        this.end();
-      }
-    }
-    
-    handleClick() {
-      if (!this.isActive) return;
-      
-      // Anti-cheat: simple rate limiting (max 20 clicks per 100ms)
-      const now = performance.now();
-      if (!this.lastClickTime || now - this.lastClickTime > 50) {
-        this.score++;
-        this.elements.score.textContent = this.score;
-        this.elements.button.classList.add('clicked');
-        
-        // Remove animation class after completion
-        setTimeout(() => {
-          this.elements.button?.classList.remove('clicked');
-        }, 150);
-        
-        this.lastClickTime = now;
-      }
-    }
-    
-    end() {
-      clearInterval(this.timerId);
-      this.isActive = false;
-      
-      // Update UI
-      this.elements.button.disabled = true;
-      this.elements.startBtn.disabled = false;
-      this.elements.startBtn.textContent = 'Jogar Novamente';
-      
-      // Determine rank
-      let rank = 'Iniciante';
-      let color = 'var(--color-text-muted)';
-      
-      if (this.score >= CONSTANTS.CLICKER_THRESHOLDS.legend) {
-        rank = '🏆 LENDA';
-        color = 'var(--color-accent-primary)';
-      } else if (this.score >= CONSTANTS.CLICKER_THRESHOLDS.pro) {
-        rank = '⭐ PRO';
-        color = 'var(--color-accent-secondary)';
-      } else if (this.score >= CONSTANTS.CLICKER_THRESHOLDS.beginner) {
-        rank = '👍 Bom';
-        color = 'var(--color-success)';
-      }
-      
-      // Save score
-      addScore('clicker', this.score);
-      
-      // Show result
-      showResult(
-        'Clicker Speed - Resultado',
-        `<strong style="font-size: 2rem; color: ${color}">${this.score}</strong> cliques!<br>
-         Classificação: <strong>${rank}</strong>`,
-        true
-      );
-    }
-    
-    destroy() {
-      clearInterval(this.timerId);
-      this.isActive = false;
-    }
-  }
-
-  // ===== Game: Memory Challenge =====
-  
-  /**
-   * Memory Challenge Game Class
-   */
-  class MemoryGame {
-    constructor(container) {
-      this.container = container;
-      this.cards = [];
-      this.flippedCards = [];
-      this.matchedPairs = 0;
-      this.moves = 0;
-      this.startTime = null;
-      this.timerId = null;
-      this.isProcessing = false;
-      this.totalPairs = CONSTANTS.MEMORY_EMOJIS.length;
-      
-      this.init();
-    }
-    
-    init() {
-      this.render();
-      this.bindEvents();
-      this.startGame();
-    }
-    
-    render() {
-      this.container.innerHTML = `
-        <div class="memory__header">
-          <div class="memory__stats">
-            <div class="memory__stat">
-              <span class="memory__stat-value" id="memory-moves">0</span>
-              <span>Movimentos</span>
-            </div>
-            <div class="memory__stat">
-              <span class="memory__stat-value" id="memory-time">00:00</span>
-              <span>Tempo</span>
-            </div>
-          </div>
-          <button id="memory-restart" class="btn btn--secondary" type="button" aria-label="Reiniciar jogo">
-            🔄 Reiniciar
-          </button>
-        </div>
-        <div id="memory-grid" class="memory__grid" role="grid" aria-label="Grade do jogo da memória"></div>
-      `;
-      
-      this.elements = {
-        moves: this.container.querySelector('#memory-moves'),
-        time: this.container.querySelector('#memory-time'),
-        grid: this.container.querySelector('#memory-grid'),
-        restartBtn: this.container.querySelector('#memory-restart')
-      };
-    }
-    
-    bindEvents() {
-      // Event delegation for card clicks
-      this.elements.grid?.addEventListener('click', (e) => {
-        const card = e.target.closest('.memory__card');
-        if (card && !this.isProcessing) {
-          this.handleCardClick(card);
+        /**
+         * Subscribe to state changes
+         * @param {string} key - State key to observe
+         * @param {Function} callback - Function to call on change
+         */
+        function subscribe(key, callback) {
+            if (!subscribers.has(key)) {
+                subscribers.set(key, []);
+            }
+            subscribers.get(key).push(callback);
+            return () => unsubscribe(key, callback);
         }
-      });
-      
-      this.elements.restartBtn?.addEventListener('click', () => this.startGame());
-    }
-    
-    createCards() {
-      // Create pairs and shuffle
-      const pairs = [...CONSTANTS.MEMORY_EMOJIS, ...CONSTANTS.MEMORY_EMOJIS];
-      const shuffled = shuffle(pairs);
-      
-      return shuffled.map((emoji, index) => ({
-        id: index,
-        emoji,
-        isFlipped: false,
-        isMatched: false
-      }));
-    }
-    
-    renderCards() {
-      if (!this.elements.grid) return;
-      
-      this.elements.grid.innerHTML = '';
-      
-      this.cards.forEach((card) => {
-        const cardEl = document.createElement('button');
-        cardEl.className = 'memory__card';
-        cardEl.setAttribute('role', 'gridcell');
-        cardEl.setAttribute('aria-label', 'Carta virada para baixo');
-        cardEl.dataset.id = card.id;
-        cardEl.innerHTML = `
-          <div class="memory__card-face memory__card-front">?</div>
-          <div class="memory__card-face memory__card-back">${card.emoji}</div>
-        `;
-        this.elements.grid.appendChild(cardEl);
-      });
-    }
-    
-    startGame() {
-      // Reset state
-      this.cards = this.createCards();
-      this.flippedCards = [];
-      this.matchedPairs = 0;
-      this.moves = 0;
-      this.isProcessing = false;
-      this.startTime = Date.now();
-      
-      // Reset UI
-      if (this.elements.moves) this.elements.moves.textContent = '0';
-      if (this.elements.time) this.elements.time.textContent = '00:00';
-      
-      // Render and start timer
-      this.renderCards();
-      this.startTimer();
-    }
-    
-    startTimer() {
-      if (this.timerId) clearInterval(this.timerId);
-      
-      this.timerId = setInterval(() => {
-        const elapsed = Date.now() - this.startTime;
-        if (this.elements.time) {
-          this.elements.time.textContent = formatTime(elapsed);
+
+        /**
+         * Unsubscribe from state changes
+         * @param {string} key - State key
+         * @param {Function} callback - Callback to remove
+         */
+        function unsubscribe(key, callback) {
+            if (subscribers.has(key)) {
+                const cbs = subscribers.get(key);
+                const idx = cbs.indexOf(callback);
+                if (idx > -1) cbs.splice(idx, 1);
+            }
         }
-      }, 1000);
-    }
-    
-    handleCardClick(cardEl) {
-      const cardId = parseInt(cardEl.dataset.id, 10);
-      const card = this.cards.find(c => c.id === cardId);
-      
-      // Ignore if already flipped, matched, or processing
-      if (!card || card.isFlipped || card.isMatched || this.isProcessing) return;
-      
-      // Flip card
-      card.isFlipped = true;
-      cardEl.classList.add('flipped');
-      cardEl.setAttribute('aria-label', `Carta: ${card.emoji}`);
-      
-      this.flippedCards.push({ card, element: cardEl });
-      
-      // Check for match when two cards are flipped
-      if (this.flippedCards.length === 2) {
-        this.moves++;
-        if (this.elements.moves) this.elements.moves.textContent = this.moves;
-        this.isProcessing = true;
-        this.checkMatch();
-      }
-    }
-    
-    checkMatch() {
-      const [first, second] = this.flippedCards;
-      
-      if (first.card.emoji === second.card.emoji) {
-        // Match found
-        first.card.isMatched = true;
-        second.card.isMatched = true;
-        first.element.classList.add('matched');
-        second.element.classList.add('matched');
-        this.matchedPairs++;
-        
-        // Check win condition
-        if (this.matchedPairs === this.totalPairs) {
-          this.endGame();
+
+        /**
+         * Update state and notify subscribers
+         * @param {string} key - State key
+         * @param {*} value - New value
+         */
+        function setState(key, value) {
+            const oldValue = state[key];
+            state[key] = value;
+            
+            if (subscribers.has(key)) {
+                subscribers.get(key).forEach(cb => cb(value, oldValue));
+            }
+            
+            if (subscribers.has('*')) {
+                subscribers.get('*').forEach(cb => cb(key, value, oldValue));
+            }
         }
-      } else {
-        // No match - flip back after delay
-        setTimeout(() => {
-          first.card.isFlipped = false;
-          second.card.isFlipped = false;
-          first.element.classList.remove('flipped');
-          second.element.classList.remove('flipped');
-          first.element.setAttribute('aria-label', 'Carta virada para baixo');
-          second.element.setAttribute('aria-label', 'Carta virada para baixo');
-        }, 800);
-      }
-      
-      // Reset flipped cards and processing flag
-      this.flippedCards = [];
-      setTimeout(() => { this.isProcessing = false; }, 800);
-    }
-    
-    endGame() {
-      clearInterval(this.timerId);
-      
-      const totalTime = Date.now() - this.startTime;
-      
-      // Save score (lower moves is better)
-      addScore('memory', this.moves, { time: totalTime });
-      
-      // Determine rating
-      let rating = 'Bom trabalho!';
-      if (this.moves <= 16) rating = '🏆 Perfeito!';
-      else if (this.moves <= 24) rating = '⭐ Excelente!';
-      
-      // Show result
-      showResult(
-        'Memory Challenge - Vitória!',
-        `<strong>${rating}</strong><br>
-         Movimentos: <strong>${this.moves}</strong><br>
-         Tempo: <strong>${formatTime(totalTime)}</strong>`,
-        true
-      );
-    }
-    
-    destroy() {
-      clearInterval(this.timerId);
-      this.isProcessing = true;
-    }
-  }
 
-  // ===== Game Launcher =====
-  
-  /**
-   * Launch selected game in modal
-   * @param {string} gameName - Game identifier ('clicker' or 'memory')
-   */
-  const launchGame = (gameName) => {
-    if (!DOM.modalContent) return;
-    
-    resetModal();
-    openModal();
-    AppState.activeGame = gameName;
-    
-    if (gameName === 'clicker') {
-      AppState.gameInstances.clicker = new ClickerGame(DOM.modalContent);
-    } else if (gameName === 'memory') {
-      AppState.gameInstances.memory = new MemoryGame(DOM.modalContent);
-    }
-    
-    // Handle restart from result screen
-    if (DOM.modalRestart) {
-      DOM.modalRestart.onclick = () => {
-        if (AppState.activeGame === 'clicker' && AppState.gameInstances.clicker) {
-          AppState.gameInstances.clicker.start();
-          DOM.modalResult.hidden = true;
-          DOM.modalContent.hidden = false;
-        } else if (AppState.activeGame === 'memory' && AppState.gameInstances.memory) {
-          AppState.gameInstances.memory.startGame();
-          DOM.modalResult.hidden = true;
-          DOM.modalContent.hidden = false;
+        /**
+         * Get state value
+         * @param {string} key - State key
+         * @returns {*} State value
+         */
+        function getState(key) {
+            return key ? state[key] : { ...state };
         }
-      };
+
+        /**
+         * Reset state to defaults
+         */
+        function reset() {
+            state = {
+                currentView: 'home',
+                soundEnabled: true,
+                highContrast: false,
+                focusMode: false,
+                username: 'Jogador',
+                xp: 0,
+                level: 1,
+                matches: [],
+                reactionBest: null,
+                reactionLast: null,
+                reactionAverage: null,
+                reactionTrend: [],
+                patternBest: null,
+                patternRound: 0
+            };
+        }
+
+        return { subscribe, setState, getState, reset };
+    })();
+
+    // ============================================
+    // STORAGE MANAGER (with fallback)
+    // ============================================
+    const StorageManager = (function() {
+        let useMemoryFallback = false;
+        const memoryStore = {};
+
+        /**
+         * Initialize storage, detect if localStorage is available
+         */
+        function init() {
+            try {
+                const testKey = '__nexus_test__';
+                localStorage.setItem(testKey, 'test');
+                localStorage.removeItem(testKey);
+            } catch (e) {
+                useMemoryFallback = true;
+                Toast.show('Armazenamento local indisponível. Dados temporários.', 'warning');
+            }
+        }
+
+        /**
+         * Save data to storage
+         * @param {string} key - Storage key
+         * @param {*} data - Data to save
+         */
+        function save(key, data) {
+            try {
+                if (useMemoryFallback) {
+                    memoryStore[key] = data;
+                } else {
+                    localStorage.setItem(key, JSON.stringify(data));
+                }
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    Toast.show('Armazenamento cheio. Alguns dados não foram salvos.', 'error');
+                }
+                memoryStore[key] = data;
+            }
+        }
+
+        /**
+         * Load data from storage
+         * @param {string} key - Storage key
+         * @param {*} defaultValue - Default if not found
+         * @returns {*} Loaded data or default
+         */
+        function load(key, defaultValue = null) {
+            try {
+                if (useMemoryFallback) {
+                    return memoryStore[key] !== undefined ? memoryStore[key] : defaultValue;
+                }
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch (e) {
+                Toast.show('Erro ao carregar dados.', 'error');
+                return defaultValue;
+            }
+        }
+
+        /**
+         * Remove data from storage
+         * @param {string} key - Storage key
+         */
+        function remove(key) {
+            try {
+                if (useMemoryFallback) {
+                    delete memoryStore[key];
+                } else {
+                    localStorage.removeItem(key);
+                }
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        /**
+         * Clear all storage
+         */
+        function clear() {
+            try {
+                if (useMemoryFallback) {
+                    Object.keys(memoryStore).forEach(k => delete memoryStore[k]);
+                } else {
+                    localStorage.clear();
+                }
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        return { init, save, load, remove, clear };
+    })();
+
+    // ============================================
+    // TOAST NOTIFICATION SYSTEM
+    // ============================================
+    const Toast = (function() {
+        const container = null;
+        const queue = [];
+        const autoDismissDelay = 4000;
+        let isAnimating = false;
+
+        /**
+         * Show a toast notification
+         * @param {string} message - Toast message
+         * @param {string} type - Toast type (success, error, warning, info)
+         */
+        function show(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.setAttribute('role', 'alert');
+            toast.textContent = message;
+
+            queue.push(toast);
+            container.appendChild(toast);
+
+            setTimeout(() => dismiss(toast), autoDismissDelay);
+        }
+
+        /**
+         * Dismiss a toast
+         * @param {HTMLElement} toast - Toast element
+         */
+        function dismiss(toast) {
+            if (!toast || toast.classList.contains('hiding')) return;
+
+            toast.classList.add('hiding');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+                const idx = queue.indexOf(toast);
+                if (idx > -1) queue.splice(idx, 1);
+            }, 250);
+        }
+
+        return { show, dismiss };
+    })();
+
+    // ============================================
+    // AUDIO MANAGER (Web Audio API Simulation)
+    // ============================================
+    const AudioManager = (function() {
+        let audioContext = null;
+        let enabled = true;
+
+        /**
+         * Initialize audio context
+         */
+        function init() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                enabled = false;
+            }
+        }
+
+        /**
+         * Play a tone
+         * @param {number} frequency - Frequency in Hz
+         * @param {number} duration - Duration in ms
+         * @param {string} type - Wave type (sine, square, triangle, sawtooth)
+         */
+        function playTone(frequency, duration, type = 'sine') {
+            if (!enabled || !audioContext) return;
+
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        /**
+         * Play success sound
+         */
+        function playSuccess() {
+            playTone(523.25, 150, 'sine');
+            setTimeout(() => playTone(659.25, 150, 'sine'), 100);
+        }
+
+        /**
+         * Play error sound
+         */
+        function playError() {
+            playTone(196, 300, 'sawtooth');
+        }
+
+        /**
+         * Play click sound
+         */
+        function playClick() {
+            playTone(800, 50, 'triangle');
+        }
+
+        /**
+         * Set enabled state
+         * @param {boolean} value - Enable/disable
+         */
+        function setEnabled(value) {
+            enabled = value;
+            if (value && audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        return { init, playSuccess, playError, playClick, setEnabled };
+    })();
+
+    // ============================================
+    // ROUTER (SPA-like Hash Routing)
+    // ============================================
+    const Router = (function() {
+        let previousView = 'home';
+
+        /**
+         * Navigate to a view
+         * @param {string} viewName - View name
+         */
+        function navigate(viewName) {
+            const views = document.querySelectorAll('.view');
+            views.forEach(view => {
+                view.classList.remove('view-active');
+            });
+
+            const targetView = document.getElementById(`view-${viewName}`);
+            if (targetView) {
+                targetView.classList.add('view-active');
+                StateController.setState('currentView', viewName);
+                previousView = StateController.getState('currentView');
+                window.location.hash = viewName;
+            }
+        }
+
+        /**
+         * Handle hash change
+         */
+        function handleHashChange() {
+            const hash = window.location.hash.slice(1) || 'home';
+            const validViews = ['home', 'reaction-racer', 'pattern-decoder'];
+            
+            if (validViews.includes(hash)) {
+                navigate(hash);
+            } else {
+                navigate('home');
+            }
+        }
+
+        /**
+         * Go back to previous view
+         */
+        function back() {
+            navigate(previousView);
+        }
+
+        /**
+         * Initialize router
+         */
+        function init() {
+            window.addEventListener('hashchange', handleHashChange);
+            handleHashChange();
+        }
+
+        return { navigate, back, init };
+    })();
+
+    // ============================================
+    // MODAL MANAGER
+    // ============================================
+    const ModalManager = (function() {
+        let previouslyFocused = null;
+        let focusableElements = [];
+        let firstFocusable = null;
+        let lastFocusable = null;
+
+        /**
+         * Open modal
+         * @param {string} modalId - Modal element ID
+         */
+        function open(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            previouslyFocused = document.activeElement;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+
+            // Setup focus trap
+            focusableElements = modal.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            firstFocusable = focusableElements[0];
+            lastFocusable = focusableElements[focusableElements.length - 1];
+
+            // Focus first element
+            if (firstFocusable) {
+                setTimeout(() => firstFocusable.focus(), 100);
+            }
+
+            // Add keyboard listener
+            modal.addEventListener('keydown', handleKeyDown);
+        }
+
+        /**
+         * Close modal
+         * @param {string} modalId - Modal element ID
+         */
+        function close(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            modal.removeEventListener('keydown', handleKeyDown);
+
+            // Restore focus
+            if (previouslyFocused) {
+                previouslyFocused.focus();
+            }
+        }
+
+        /**
+         * Handle keyboard events for focus trap
+         * @param {KeyboardEvent} e - Keyboard event
+         */
+        function handleKeyDown(e) {
+            if (e.key === 'Escape') {
+                const modal = e.target.closest('.modal-overlay');
+                if (modal) {
+                    close(modal.id);
+                }
+            }
+
+            if (e.key === 'Tab') {
+                if (e.shiftKey) {
+                    if (document.activeElement === firstFocusable) {
+                        e.preventDefault();
+                        lastFocusable.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastFocusable) {
+                        e.preventDefault();
+                        firstFocusable.focus();
+                    }
+                }
+            }
+        }
+
+        return { open, close };
+    })();
+
+    // ============================================
+    // GAME ENGINE BASE CLASS
+    // ============================================
+    class GameEngine {
+        constructor(name) {
+            this.name = name;
+            this.isRunning = false;
+            this.isPaused = false;
+            this.listeners = [];
+            this.intervals = [];
+            this.timeouts = [];
+            this.animationFrames = [];
+        }
+
+        init() {}
+        start() { this.isRunning = true; }
+        pause() { this.isPaused = true; }
+        resume() { this.isPaused = false; }
+        cleanup() {
+            this.isRunning = false;
+            this.isPaused = false;
+
+            // Remove all listeners
+            this.listeners.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
+            });
+            this.listeners = [];
+
+            // Clear all intervals
+            this.intervals.forEach(id => clearInterval(id));
+            this.intervals = [];
+
+            // Clear all timeouts
+            this.timeouts.forEach(id => clearTimeout(id));
+            this.timeouts = [];
+
+            // Cancel all animation frames
+            this.animationFrames.forEach(id => cancelAnimationFrame(id));
+            this.animationFrames = [];
+        }
+
+        addListener(element, event, handler) {
+            element.addEventListener(event, handler);
+            this.listeners.push({ element, event, handler });
+        }
+
+        addInterval(callback, delay) {
+            const id = setInterval(callback, delay);
+            this.intervals.push(id);
+            return id;
+        }
+
+        addTimeout(callback, delay) {
+            const id = setTimeout(callback, delay);
+            this.timeouts.push(id);
+            return id;
+        }
+
+        addAnimationFrame(callback) {
+            const id = requestAnimationFrame(callback);
+            this.animationFrames.push(id);
+            return id;
+        }
+
+        handleInput(input) {}
     }
-    
-    if (DOM.modalCloseBtn) {
-      DOM.modalCloseBtn.onclick = closeModal;
+
+    // ============================================
+    // REACTION RACER GAME
+    // ============================================
+    class ReactionRacer extends GameEngine {
+        constructor() {
+            super('reaction-racer');
+            this.state = 'idle'; // idle, waiting, ready, finished
+            this.startTime = 0;
+            this.waitTimeout = null;
+            this.lastTimes = [];
+            this.display = null;
+            this.area = null;
+        }
+
+        init() {
+            this.display = document.getElementById('reaction-display');
+            this.area = document.getElementById('reaction-area');
+
+            if (!this.display || !this.area) return;
+
+            this.addListener(this.display, 'click', () => this.handleClick());
+            this.addListener(this.display, 'touchstart', (e) => {
+                e.preventDefault();
+                this.handleClick();
+            });
+
+            this.updateStats();
+            this.updateTrendChart();
+        }
+
+        start() {
+            super.start();
+            this.resetState();
+        }
+
+        resetState() {
+            this.state = 'waiting';
+            this.display.className = 'reaction-display waiting';
+            this.display.querySelector('.instruction').textContent = 'Aguarde...';
+
+            const delay = this.randomDelay(1500, 4000);
+            this.waitTimeout = this.addTimeout(() => this.showReady(), delay);
+        }
+
+        randomDelay(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        showReady() {
+            if (!this.isRunning || this.state !== 'waiting') return;
+
+            this.state = 'ready';
+            this.startTime = performance.now();
+            this.display.className = 'reaction-display ready';
+            this.display.querySelector('.instruction').textContent = 'CLIQUE!';
+            AudioManager.playClick();
+        }
+
+        handleClick() {
+            if (!this.isRunning) return;
+
+            if (this.state === 'waiting') {
+                // Early click
+                clearTimeout(this.waitTimeout);
+                this.state = 'finished';
+                this.display.className = 'reaction-display clicked';
+                this.display.querySelector('.instruction').textContent = 'Muito cedo! Clique para tentar novamente.';
+                AudioManager.playError();
+                return;
+            }
+
+            if (this.state === 'ready') {
+                const reactionTime = performance.now() - this.startTime;
+                this.recordTime(reactionTime);
+                this.state = 'finished';
+                this.display.className = 'reaction-display';
+                this.display.querySelector('.instruction').textContent = `${Math.round(reactionTime)}ms - Clique para jogar novamente`;
+                AudioManager.playSuccess();
+                return;
+            }
+
+            if (this.state === 'finished' || this.state === 'idle') {
+                this.resetState();
+            }
+        }
+
+        recordTime(time) {
+            this.lastTimes.push(time);
+            if (this.lastTimes.length > 5) {
+                this.lastTimes.shift();
+            }
+
+            const best = Math.min(...this.lastTimes);
+            const average = this.lastTimes.reduce((a, b) => a + b, 0) / this.lastTimes.length;
+
+            StateController.setState('reactionLast', Math.round(time));
+            StateController.setState('reactionBest', Math.round(best));
+            StateController.setState('reactionAverage', Math.round(average));
+            StateController.setState('reactionTrend', [...this.lastTimes]);
+
+            // Save to storage
+            const savedData = StorageManager.load('nexus_reaction_data', {});
+            savedData.best = Math.round(best);
+            savedData.times = this.lastTimes.map(t => Math.round(t));
+            StorageManager.save('nexus_reaction_data', savedData);
+
+            // Add XP
+            this.addXP(time);
+
+            // Record match
+            this.recordMatch(time);
+
+            this.updateStats();
+            this.updateTrendChart();
+        }
+
+        addXP(time) {
+            let xpGained = 0;
+            if (time < 200) xpGained = 25;
+            else if (time < 250) xpGained = 20;
+            else if (time < 300) xpGained = 15;
+            else xpGained = 10;
+
+            const currentXP = StateController.getState('xp');
+            const currentLevel = StateController.getState('level');
+            const newXp = currentXP + xpGained;
+            const newLevel = Math.floor(newXp / 100) + 1;
+
+            StateController.setState('xp', newXp % 100);
+            if (newLevel > currentLevel) {
+                StateController.setState('level', newLevel);
+                Toast.show(`Nível ${newLevel} alcançado!`, 'success');
+                AudioManager.playSuccess();
+            }
+
+            this.updateXPDisplay();
+        }
+
+        recordMatch(time) {
+            const matches = StateController.getState('matches');
+            matches.unshift({
+                game: 'Reaction Racer',
+                score: `${Math.round(time)}ms`,
+                timestamp: Date.now()
+            });
+            if (matches.length > 10) matches.pop();
+            StateController.setState('matches', matches);
+            StorageManager.save('nexus_matches', matches);
+        }
+
+        updateStats() {
+            const best = StateController.getState('reactionBest');
+            const last = StateController.getState('reactionLast');
+            const average = StateController.getState('reactionAverage');
+
+            const bestEl = document.getElementById('reaction-current-best');
+            const lastEl = document.getElementById('reaction-last');
+            const avgEl = document.getElementById('reaction-average');
+            const homeBestEl = document.getElementById('reaction-best');
+
+            if (bestEl) bestEl.textContent = best !== null ? `${best} ms` : '-- ms';
+            if (lastEl) lastEl.textContent = last !== null ? `${last} ms` : '-- ms';
+            if (avgEl) avgEl.textContent = average !== null ? `${average} ms` : '-- ms';
+            if (homeBestEl) homeBestEl.textContent = best !== null ? `${best} ms` : '-- ms';
+        }
+
+        updateTrendChart() {
+            const trendLine = document.getElementById('trend-line');
+            if (!trendLine) return;
+
+            const times = StateController.getState('reactionTrend');
+            if (times.length < 2) {
+                trendLine.setAttribute('points', '');
+                return;
+            }
+
+            const maxTime = Math.max(...times);
+            const minTime = Math.min(...times);
+            const range = maxTime - minTime || 1;
+
+            const points = times.map((time, index) => {
+                const x = (index / (times.length - 1)) * 200;
+                const y = 60 - ((time - minTime) / range) * 50 - 5;
+                return `${x},${y}`;
+            }).join(' ');
+
+            trendLine.setAttribute('points', points);
+        }
+
+        updateXPDisplay() {
+            const xp = StateController.getState('xp');
+            const level = StateController.getState('level');
+            const fill = document.getElementById('xp-fill');
+            const text = document.getElementById('xp-text');
+
+            if (fill) fill.style.width = `${xp}%`;
+            if (text) text.textContent = `Nível ${level} • ${xp}/100 XP`;
+        }
+
+        cleanup() {
+            super.cleanup();
+            this.state = 'idle';
+        }
     }
-  };
 
-  // ===== Event Handlers =====
-  
-  /**
-   * Handle smooth scroll navigation
-   * @param {Event} event
-   */
-  const handleNavClick = (event) => {
-    const link = event.target.closest('.nav__link, .footer__link, .hero__actions a');
-    if (!link) return;
-    
-    const href = link.getAttribute('href');
-    if (!href || !href.startsWith('#')) return;
-    
-    event.preventDefault();
-    const target = document.querySelector(href);
-    
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      
-      // Close mobile menu if open
-      if (DOM.navToggle?.getAttribute('aria-expanded') === 'true') {
-        toggleMobileMenu(false);
-      }
-      
-      // Update URL without jump
-      history.pushState(null, null, href);
+    // ============================================
+    // PATTERN DECODER GAME
+    // ============================================
+    class PatternDecoder extends GameEngine {
+        constructor() {
+            super('pattern-decoder');
+            this.sequence = [];
+            this.userSequence = [];
+            this.round = 0;
+            this.isShowingSequence = false;
+            this.buttons = [];
+        }
+
+        init() {
+            this.buttons = Array.from(document.querySelectorAll('.pattern-btn'));
+            
+            this.buttons.forEach(btn => {
+                this.addListener(btn, 'click', () => this.handleButtonClick(parseInt(btn.dataset.index)));
+            });
+
+            const startBtn = document.getElementById('pattern-start');
+            if (startBtn) {
+                this.addListener(startBtn, 'click', () => this.startGame());
+            }
+
+            this.updateStats();
+        }
+
+        start() {
+            super.start();
+        }
+
+        startGame() {
+            this.sequence = [];
+            this.userSequence = [];
+            this.round = 0;
+            this.isShowingSequence = false;
+
+            this.buttons.forEach(btn => {
+                btn.disabled = false;
+            });
+
+            this.nextRound();
+        }
+
+        nextRound() {
+            this.round++;
+            this.userSequence = [];
+            StateController.setState('patternRound', this.round);
+
+            const roundEl = document.getElementById('pattern-round');
+            const statusEl = document.getElementById('pattern-status');
+
+            if (roundEl) roundEl.textContent = this.round;
+            if (statusEl) statusEl.textContent = 'Observe a sequência';
+
+            // Add new step to sequence
+            this.sequence.push(Math.floor(Math.random() * 4));
+
+            // Show sequence after delay
+            this.addTimeout(() => this.showSequence(), 1000);
+        }
+
+        showSequence() {
+            if (!this.isRunning) return;
+
+            this.isShowingSequence = true;
+            this.buttons.forEach(btn => btn.disabled = true);
+
+            let index = 0;
+            const showStep = () => {
+                if (!this.isRunning || index >= this.sequence.length) {
+                    this.isShowingSequence = false;
+                    this.buttons.forEach(btn => btn.disabled = false);
+                    const statusEl = document.getElementById('pattern-status');
+                    if (statusEl) statusEl.textContent = 'Sua vez!';
+                    return;
+                }
+
+                const btnIndex = this.sequence[index];
+                this.flashButton(btnIndex);
+
+                index++;
+                this.addTimeout(showStep, 600);
+            };
+
+            showStep();
+        }
+
+        flashButton(index) {
+            const btn = this.buttons[index];
+            if (!btn) return;
+
+            btn.classList.add('active');
+            AudioManager.playTone([523.25, 659.25, 783.99, 1046.50][index], 200, 'sine');
+
+            this.addTimeout(() => {
+                btn.classList.remove('active');
+            }, 300);
+        }
+
+        handleButtonClick(index) {
+            if (!this.isRunning || this.isShowingSequence) return;
+
+            this.flashButton(index);
+            this.userSequence.push(index);
+
+            // Check if correct
+            const currentIndex = this.userSequence.length - 1;
+            if (this.userSequence[currentIndex] !== this.sequence[currentIndex]) {
+                this.gameOver();
+                return;
+            }
+
+            // Check if sequence complete
+            if (this.userSequence.length === this.sequence.length) {
+                this.addTimeout(() => this.nextRound(), 1000);
+            }
+        }
+
+        gameOver() {
+            this.isRunning = false;
+            AudioManager.playError();
+
+            const statusEl = document.getElementById('pattern-status');
+            if (statusEl) statusEl.textContent = 'Fim de jogo!';
+
+            this.buttons.forEach(btn => btn.disabled = true);
+
+            // Update best score
+            const currentBest = StateController.getState('patternBest');
+            if (currentBest === null || this.round - 1 > currentBest) {
+                StateController.setState('patternBest', this.round - 1);
+                StorageManager.save('nexus_pattern_data', { best: this.round - 1 });
+                Toast.show('Novo recorde!', 'success');
+            }
+
+            // Add XP
+            const xpGained = Math.min(this.round * 5, 50);
+            const currentXP = StateController.getState('xp');
+            const currentLevel = StateController.getState('level');
+            const newXp = currentXP + xpGained;
+            const newLevel = Math.floor(newXp / 100) + 1;
+
+            StateController.setState('xp', newXp % 100);
+            if (newLevel > currentLevel) {
+                StateController.setState('level', newLevel);
+                Toast.show(`Nível ${newLevel} alcançado!`, 'success');
+            }
+
+            // Record match
+            const matches = StateController.getState('matches');
+            matches.unshift({
+                game: 'Pattern Decoder',
+                score: `Round ${this.round - 1}`,
+                timestamp: Date.now()
+            });
+            if (matches.length > 10) matches.pop();
+            StateController.setState('matches', matches);
+            StorageManager.save('nexus_matches', matches);
+
+            this.updateStats();
+            this.updateXPDisplay();
+        }
+
+        updateStats() {
+            const best = StateController.getState('patternBest');
+            const bestEl = document.getElementById('pattern-current-best');
+            const homeBestEl = document.getElementById('pattern-best');
+
+            if (bestEl) bestEl.textContent = best !== null ? `${best}` : '--';
+            if (homeBestEl) homeBestEl.textContent = best !== null ? `${best} rounds` : '-- rounds';
+        }
+
+        updateXPDisplay() {
+            const xp = StateController.getState('xp');
+            const level = StateController.getState('level');
+            const fill = document.getElementById('xp-fill');
+            const text = document.getElementById('xp-text');
+
+            if (fill) fill.style.width = `${xp}%`;
+            if (text) text.textContent = `Nível ${level} • ${xp}/100 XP`;
+        }
+
+        cleanup() {
+            super.cleanup();
+            this.sequence = [];
+            this.userSequence = [];
+            this.round = 0;
+            this.isShowingSequence = false;
+            this.buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('active');
+            });
+        }
     }
-  };
 
-  /**
-   * Toggle mobile navigation menu
-   * @param {boolean} force - Force open/close state
-   */
-  const toggleMobileMenu = (force = null) => {
-    if (!DOM.navToggle || !DOM.navMenu) return;
-    
-    const shouldOpen = force !== null ? force : DOM.navToggle.getAttribute('aria-expanded') === 'false';
-    
-    DOM.navToggle.setAttribute('aria-expanded', shouldOpen.toString());
-    DOM.navMenu.setAttribute('aria-hidden', (!shouldOpen).toString());
-    
-    // Focus management
-    if (shouldOpen) {
-      const firstLink = DOM.navMenu.querySelector('.nav__link');
-      firstLink?.focus();
-    }
-  };
+    // ============================================
+    // APP CONTROLLER
+    // ============================================
+    const AppController = (function() {
+        let games = {};
+        let currentGame = null;
 
-  /**
-   * Handle score tab switching
-   * @param {Event} event
-   */
-  const handleScoreTabClick = (event) => {
-    const tab = event.target.closest('.scores__tab');
-    if (!tab) return;
-    
-    const targetPanelId = tab.getAttribute('aria-controls');
-    
-    // Update tabs
-    DOM.scoreTabs?.forEach(t => {
-      t.setAttribute('aria-selected', 'false');
-      t.classList.remove('scores__tab--active');
-      t.setAttribute('tabindex', '-1');
-    });
-    tab.setAttribute('aria-selected', 'true');
-    tab.classList.add('scores__tab--active');
-    tab.setAttribute('tabindex', '0');
-    
-    // Update panels
-    DOM.scorePanels?.forEach(panel => {
-      panel.hidden = true;
-      panel.classList.remove('scores__panel--active');
-    });
-    const targetPanel = document.getElementById(targetPanelId);
-    if (targetPanel) {
-      targetPanel.hidden = false;
-      targetPanel.classList.add('scores__panel--active');
-    }
-  };
+        /**
+         * Initialize application
+         */
+        function init() {
+            StorageManager.init();
+            AudioManager.init();
+            Router.init();
+            loadSavedData();
+            setupEventListeners();
+            initializeGames();
+            updateUI();
 
-  /**
-   * Handle game card interactions (click/keyboard)
-   * @param {Event} event
-   */
-  const handleGameCardActivate = (event) => {
-    // Support click and keyboard activation (Enter/Space)
-    const isKeyboard = event.type === 'keydown' && 
-      (event.key === 'Enter' || event.key === ' ');
-    
-    if (event.type === 'click' || isKeyboard) {
-      event.preventDefault();
-      
-      const card = event.target.closest('.game-card');
-      if (!card || card.classList.contains('game-card--coming-soon')) return;
-      
-      const gameName = card.dataset.game;
-      if (gameName) {
-        launchGame(gameName);
-      }
-    }
-  };
+            StateController.subscribe('soundEnabled', AudioManager.setEnabled);
+            StateController.subscribe('highContrast', value => {
+                document.documentElement.setAttribute('data-high-contrast', value);
+            });
+            StateController.subscribe('focusMode', value => {
+                document.documentElement.setAttribute('data-focus-mode', value);
+            });
+            StateController.subscribe('username', value => {
+                const el = document.getElementById('username');
+                if (el) el.textContent = value;
+            });
+            StateController.subscribe('xp', updateXPUI);
+            StateController.subscribe('level', updateXPUI);
+            StateController.subscribe('matches', updateMatchesList);
+        }
 
-  /**
-   * Global event delegation setup
-   */
-  const setupEventDelegation = () => {
-    // Navigation clicks
-    document.addEventListener('click', handleNavClick);
-    
-    // Mobile menu toggle
-    DOM.navToggle?.addEventListener('click', () => toggleMobileMenu());
-    
-    // Close mobile menu on link click (handled in handleNavClick)
-    
-    // Score tabs
-    document.addEventListener('click', handleScoreTabClick);
-    
-    // Game cards - event delegation for click and keyboard
-    document.addEventListener('click', handleGameCardActivate);
-    document.addEventListener('keydown', (e) => {
-      if (e.target?.closest('.game-card')) {
-        handleGameCardActivate(e);
-      }
-    });
-    
-    // Modal close buttons
-    DOM.modalClose?.addEventListener('click', closeModal);
-  };
+        /**
+         * Load saved data from storage
+         */
+        function loadSavedData() {
+            const settings = StorageManager.load('nexus_settings', {});
+            if (settings.soundEnabled !== undefined) {
+                StateController.setState('soundEnabled', settings.soundEnabled);
+                AudioManager.setEnabled(settings.soundEnabled);
+            }
+            if (settings.highContrast !== undefined) {
+                StateController.setState('highContrast', settings.highContrast);
+                document.documentElement.setAttribute('data-high-contrast', settings.highContrast);
+            }
+            if (settings.focusMode !== undefined) {
+                StateController.setState('focusMode', settings.focusMode);
+                document.documentElement.setAttribute('data-focus-mode', settings.focusMode);
+            }
+            if (settings.username) {
+                StateController.setState('username', settings.username);
+            }
 
-  // ===== Initialization =====
-  
-  /**
-   * Cache DOM elements
-   */
-  const cacheDOM = () => {
-    // Navigation
-    DOM.navToggle = document.querySelector('.nav__toggle');
-    DOM.navMenu = document.querySelector('.nav__menu');
-    DOM.navLinks = document.querySelectorAll('.nav__link, .footer__link');
-    
-    // Modal
-    DOM.modal = document.getElementById('game-modal');
-    DOM.modalOverlay = DOM.modal?.querySelector('.modal__overlay');
-    DOM.modalClose = DOM.modal?.querySelector('.modal__close');
-    DOM.modalContent = document.getElementById('modal-content');
-    DOM.modalResult = document.getElementById('modal-result');
-    DOM.modalTitle = document.getElementById('modal-title');
-    DOM.modalMessage = document.getElementById('modal-message');
-    DOM.modalRestart = document.getElementById('modal-restart');
-    DOM.modalCloseBtn = document.getElementById('modal-close');
-    
-    // Scores
-    DOM.scoreTabs = document.querySelectorAll('.scores__tab');
-    DOM.scorePanels = document.querySelectorAll('.scores__panel');
-    DOM.clickerHighscores = document.getElementById('clicker-highscores');
-    DOM.memoryHighscores = document.getElementById('memory-highscores');
-    DOM.clickerEmpty = document.getElementById('clicker-empty');
-    DOM.memoryEmpty = document.getElementById('memory-empty');
-    
-    // Footer
-    DOM.currentYear = document.getElementById('current-year');
-  };
+            const reactionData = StorageManager.load('nexus_reaction_data', {});
+            if (reactionData.best) StateController.setState('reactionBest', reactionData.best);
+            if (reactionData.times) StateController.setState('reactionTrend', reactionData.times);
 
-  /**
-   * Main initialization function
-   */
-  const init = () => {
-    cacheDOM();
-    loadScores();
-    renderHighScores();
-    updateFooterYear();
-    setupEventDelegation();
-    
-    // Handle hash navigation on load
-    if (window.location.hash) {
-      const target = document.querySelector(window.location.hash);
-      if (target) {
-        setTimeout(() => {
-          target.scrollIntoView({ behavior: 'auto', block: 'start' });
-        }, 100);
-      }
-    }
-    
-    // Log initialization (removed in production per requirements)
-    // console.log('Nexus Games initialized');
-  };
+            const patternData = StorageManager.load('nexus_pattern_data', {});
+            if (patternData.best) StateController.setState('patternBest', patternData.best);
 
-  // Start application when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-  
+            const matches = StorageManager.load('nexus_matches', []);
+            StateController.setState('matches', matches);
+
+            const xpData = StorageManager.load('nexus_xp', { xp: 0, level: 1 });
+            StateController.setState('xp', xpData.xp);
+            StateController.setState('level', xpData.level);
+        }
+
+        /**
+         * Setup global event listeners
+         */
+        function setupEventListeners() {
+            // Settings button
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsClose = document.getElementById('settings-close');
+            const settingsModal = document.getElementById('settings-modal');
+
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', () => ModalManager.open('settings-modal'));
+            }
+            if (settingsClose) {
+                settingsClose.addEventListener('click', () => ModalManager.close('settings-modal'));
+            }
+            if (settingsModal) {
+                settingsModal.addEventListener('click', (e) => {
+                    if (e.target === settingsModal) {
+                        ModalManager.close('settings-modal');
+                    }
+                });
+            }
+
+            // Settings toggles
+            const soundToggle = document.getElementById('sound-toggle');
+            const contrastToggle = document.getElementById('contrast-toggle');
+            const focusToggle = document.getElementById('focus-toggle');
+            const usernameInput = document.getElementById('username-input');
+            const resetBtn = document.getElementById('reset-data');
+
+            if (soundToggle) {
+                soundToggle.addEventListener('click', () => {
+                    const newValue = soundToggle.getAttribute('aria-checked') !== 'true';
+                    soundToggle.setAttribute('aria-checked', newValue);
+                    StateController.setState('soundEnabled', newValue);
+                    saveSettings();
+                });
+            }
+
+            if (contrastToggle) {
+                contrastToggle.addEventListener('click', () => {
+                    const newValue = contrastToggle.getAttribute('aria-checked') !== 'true';
+                    contrastToggle.setAttribute('aria-checked', newValue);
+                    StateController.setState('highContrast', newValue);
+                    saveSettings();
+                });
+            }
+
+            if (focusToggle) {
+                focusToggle.addEventListener('click', () => {
+                    const newValue = focusToggle.getAttribute('aria-checked') !== 'true';
+                    focusToggle.setAttribute('aria-checked', newValue);
+                    StateController.setState('focusMode', newValue);
+                    saveSettings();
+                });
+            }
+
+            if (usernameInput) {
+                usernameInput.addEventListener('change', () => {
+                    const value = usernameInput.value.trim() || 'Jogador';
+                    StateController.setState('username', value);
+                    saveSettings();
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    StorageManager.clear();
+                    StateController.reset();
+                    location.reload();
+                });
+            }
+
+            // Game cards
+            const playButtons = document.querySelectorAll('.play-btn');
+            playButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const card = btn.closest('.game-card');
+                    if (card) {
+                        const gameName = card.dataset.game;
+                        Router.navigate(gameName);
+                    }
+                });
+            });
+
+            // Back buttons
+            const reactionBack = document.getElementById('reaction-back');
+            const patternBack = document.getElementById('pattern-back');
+
+            if (reactionBack) {
+                reactionBack.addEventListener('click', () => {
+                    if (games['reaction-racer']) games['reaction-racer'].cleanup();
+                    Router.back();
+                });
+            }
+
+            if (patternBack) {
+                patternBack.addEventListener('click', () => {
+                    if (games['pattern-decoder']) games['pattern-decoder'].cleanup();
+                    Router.back();
+                });
+            }
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const activeModal = document.querySelector('.modal-overlay.active');
+                    if (activeModal) {
+                        ModalManager.close(activeModal.id);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Initialize game instances
+         */
+        function initializeGames() {
+            games['reaction-racer'] = new ReactionRacer();
+            games['pattern-decoder'] = new PatternDecoder();
+
+            games['reaction-racer'].init();
+            games['pattern-decoder'].init();
+        }
+
+        /**
+         * Save settings to storage
+         */
+        function saveSettings() {
+            StorageManager.save('nexus_settings', {
+                soundEnabled: StateController.getState('soundEnabled'),
+                highContrast: StateController.getState('highContrast'),
+                focusMode: StateController.getState('focusMode'),
+                username: StateController.getState('username')
+            });
+        }
+
+        /**
+         * Update XP UI
+         */
+        function updateXPUI() {
+            const xp = StateController.getState('xp');
+            const level = StateController.getState('level');
+            const fill = document.getElementById('xp-fill');
+            const text = document.getElementById('xp-text');
+
+            if (fill) fill.style.width = `${xp}%`;
+            if (text) text.textContent = `Nível ${level} • ${xp}/100 XP`;
+        }
+
+        /**
+         * Update matches list
+         */
+        function updateMatchesList(matches) {
+            const list = document.getElementById('matches-list');
+            if (!list) return;
+
+            if (matches.length === 0) {
+                list.innerHTML = '<p class="empty-state">Nenhuma partida recente</p>';
+                return;
+            }
+
+            list.innerHTML = matches.slice(0, 5).map(match => `
+                <div class="match-item" role="listitem">
+                    <span class="match-game">${match.game}</span>
+                    <span class="match-score">${match.score}</span>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Update UI based on state
+         */
+        function updateUI() {
+            updateXPUI();
+            updateMatchesList(StateController.getState('matches'));
+
+            // Update settings toggles
+            const soundToggle = document.getElementById('sound-toggle');
+            const contrastToggle = document.getElementById('contrast-toggle');
+            const focusToggle = document.getElementById('focus-toggle');
+            const usernameInput = document.getElementById('username-input');
+
+            if (soundToggle) soundToggle.setAttribute('aria-checked', StateController.getState('soundEnabled'));
+            if (contrastToggle) contrastToggle.setAttribute('aria-checked', StateController.getState('highContrast'));
+            if (focusToggle) focusToggle.setAttribute('aria-checked', StateController.getState('focusMode'));
+            if (usernameInput) usernameInput.value = StateController.getState('username');
+
+            // Update stats displays
+            if (games['reaction-racer']) games['reaction-racer'].updateStats();
+            if (games['pattern-decoder']) games['pattern-decoder'].updateStats();
+        }
+
+        return { init };
+    })();
+
+    // ============================================
+    // INITIALIZE APPLICATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', AppController.init);
 })();

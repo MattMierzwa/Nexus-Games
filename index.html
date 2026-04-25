@@ -1,306 +1,244 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Nexus Games - Plataforma de jogos online com desafios rápidos, ranking global e experiência imersiva. Jogue agora!" />
-  <meta name="keywords" content="jogos online, arcade, memory game, clicker, ranking, nexus games" />
-  <meta name="author" content="Nexus Games Team" />
-  <meta name="theme-color" content="#0a0a12" />
-  
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://nexusgames.dev/" />
-  <meta property="og:title" content="Nexus Games - Desafios Online" />
-  <meta property="og:description" content="Plataforma de jogos online com desafios rápidos e ranking global." />
-  <meta property="og:image" content="https://placehold.co/1200x630/0a0a12/00f3ff?text=Nexus+Games" />
-  
-  <!-- Twitter Cards -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://nexusgames.dev/" />
-  <meta property="twitter:title" content="Nexus Games - Desafios Online" />
-  <meta property="twitter:description" content="Plataforma de jogos online com desafios rápidos e ranking global." />
-  <meta property="twitter:image" content="https://placehold.co/1200x630/0a0a12/00f3ff?text=Nexus+Games" />
-  
-  <title>Nexus Games - Plataforma de Jogos Online</title>
-  
-  <!-- Favicon placeholder -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
-  
-  <!-- Google Fonts preconnect -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css" />
-  
-  <!-- Script deferred -->
-  <script src="script.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nexus Games v2.0 - Plataforma de jogos interativos de alta performance">
+    <meta name="theme-color" content="#08080e">
+    <title>Nexus Games v2.0</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Skip to content link for accessibility -->
-  <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
-  
-  <!-- Header & Navigation -->
-  <header class="header">
-    <div class="header__container">
-      <a href="#" class="header__logo" aria-label="Nexus Games - Página inicial">
-        <span class="header__logo-icon" aria-hidden="true">🎮</span>
-        <span class="header__logo-text">Nexus Games</span>
-      </a>
-      
-      <nav class="nav" aria-label="Navegação principal">
-        <button 
-          class="nav__toggle" 
-          aria-expanded="false" 
-          aria-controls="nav-menu"
-          aria-label="Alternar menu de navegação"
-          type="button"
-        >
-          <span class="nav__toggle-icon" aria-hidden="true"></span>
-        </button>
-        
-        <ul id="nav-menu" class="nav__menu">
-          <li class="nav__item"><a href="#hero" class="nav__link">Início</a></li>
-          <li class="nav__item"><a href="#games" class="nav__link">Jogos</a></li>
-          <li class="nav__item"><a href="#about" class="nav__link">Sobre</a></li>
-          <li class="nav__item"><a href="#scores" class="nav__link">Ranking</a></li>
-        </ul>
-      </nav>
+    <a href="#main-content" class="skip-link">Pular para conteúdo principal</a>
+    
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="header" role="banner">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon" aria-hidden="true">◈</span>
+                    <span class="logo-text">Nexus Games</span>
+                    <span class="version-tag">v2.0</span>
+                </h1>
+                
+                <nav class="user-panel" role="navigation" aria-label="Painel do usuário">
+                    <div class="xp-container" aria-label="Progresso de experiência">
+                        <div class="xp-bar">
+                            <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
+                        </div>
+                        <span class="xp-text" id="xp-text">Nível 1 • 0/100 XP</span>
+                    </div>
+                    
+                    <button class="btn-icon" id="settings-btn" aria-label="Abrir configurações" title="Configurações">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="user-profile">
+                        <div class="avatar" id="user-avatar" aria-hidden="true">👤</div>
+                        <span class="username" id="username">Jogador</span>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content" class="main-content" role="main">
+            <!-- View: Home -->
+            <section id="view-home" class="view view-active" data-view="home">
+                <div class="hero-section">
+                    <h2 class="hero-title">Bem-vindo ao Nexus Games</h2>
+                    <p class="hero-subtitle">Desafie seus limites com jogos de reação e memória</p>
+                </div>
+                
+                <div class="games-grid" role="list">
+                    <article class="game-card" role="listitem" data-game="reaction-racer">
+                        <div class="game-card-icon">⚡</div>
+                        <h3 class="game-card-title">Reaction Racer</h3>
+                        <p class="game-card-desc">Teste seu tempo de reação em milissegundos</p>
+                        <div class="game-card-stats">
+                            <span class="stat-label">Melhor:</span>
+                            <span class="stat-value" id="reaction-best">-- ms</span>
+                        </div>
+                        <button class="btn btn-primary play-btn" aria-label="Jogar Reaction Racer">
+                            Jogar Agora
+                        </button>
+                    </article>
+                    
+                    <article class="game-card" role="listitem" data-game="pattern-decoder">
+                        <div class="game-card-icon">🧩</div>
+                        <h3 class="game-card-title">Pattern Decoder</h3>
+                        <p class="game-card-desc">Repita sequências de cores e sons</p>
+                        <div class="game-card-stats">
+                            <span class="stat-label">Recorde:</span>
+                            <span class="stat-value" id="pattern-best">-- rounds</span>
+                        </div>
+                        <button class="btn btn-primary play-btn" aria-label="Jogar Pattern Decoder">
+                            Jogar Agora
+                        </button>
+                    </article>
+                </div>
+                
+                <div class="recent-matches" aria-labelledby="recent-matches-title">
+                    <h3 id="recent-matches-title" class="section-title">Partidas Recentes</h3>
+                    <div class="matches-list" id="matches-list" role="list">
+                        <p class="empty-state">Nenhuma partida recente</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Reaction Racer -->
+            <section id="view-reaction-racer" class="view" data-view="reaction-racer">
+                <div class="game-header">
+                    <button class="btn btn-back" id="reaction-back" aria-label="Voltar ao menu">
+                        ← Voltar
+                    </button>
+                    <h2 class="game-title">Reaction Racer</h2>
+                </div>
+                
+                <div class="game-area" id="reaction-area">
+                    <div class="reaction-display" id="reaction-display">
+                        <p class="instruction">Clique quando a cor mudar</p>
+                    </div>
+                </div>
+                
+                <div class="game-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">Último Tempo</span>
+                        <span class="stat-value" id="reaction-last">-- ms</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Média (5)</span>
+                        <span class="stat-value" id="reaction-average">-- ms</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Melhor</span>
+                        <span class="stat-value" id="reaction-current-best">-- ms</span>
+                    </div>
+                </div>
+                
+                <div class="trend-chart" id="reaction-trend" aria-label="Gráfico de tendência de tempos">
+                    <svg viewBox="0 0 200 60" preserveAspectRatio="none">
+                        <polyline id="trend-line" points="" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- View: Pattern Decoder -->
+            <section id="view-pattern-decoder" class="view" data-view="pattern-decoder">
+                <div class="game-header">
+                    <button class="btn btn-back" id="pattern-back" aria-label="Voltar ao menu">
+                        ← Voltar
+                    </button>
+                    <h2 class="game-title">Pattern Decoder</h2>
+                </div>
+                
+                <div class="game-info">
+                    <span class="round-counter">Round: <strong id="pattern-round">0</strong></span>
+                    <span class="status-indicator" id="pattern-status">Aguardando início</span>
+                </div>
+                
+                <div class="pattern-grid" id="pattern-grid" role="grid" aria-label="Tabuleiro do jogo">
+                    <button class="pattern-btn" data-index="0" aria-label="Botão 1" disabled>
+                        <span class="pattern-btn-inner"></span>
+                    </button>
+                    <button class="pattern-btn" data-index="1" aria-label="Botão 2" disabled>
+                        <span class="pattern-btn-inner"></span>
+                    </button>
+                    <button class="pattern-btn" data-index="2" aria-label="Botão 3" disabled>
+                        <span class="pattern-btn-inner"></span>
+                    </button>
+                    <button class="pattern-btn" data-index="3" aria-label="Botão 4" disabled>
+                        <span class="pattern-btn-inner"></span>
+                    </button>
+                </div>
+                
+                <div class="game-controls">
+                    <button class="btn btn-primary" id="pattern-start">Iniciar Jogo</button>
+                </div>
+                
+                <div class="game-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">Melhor Round</span>
+                        <span class="stat-value" id="pattern-current-best">--</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer" role="contentinfo">
+            <p>&copy; 2024 Nexus Games. Todos os direitos reservados.</p>
+        </footer>
     </div>
-  </header>
-  
-  <!-- Main Content -->
-  <main id="main-content" class="main">
-    
-    <!-- Hero Section -->
-    <section id="hero" class="hero">
-      <div class="hero__container">
-        <h1 class="hero__title">Desafie Seus Limites</h1>
-        <p class="hero__description">Jogos rápidos, competitivos e viciantes. Suba no ranking e prove que você é o melhor.</p>
-        <div class="hero__actions">
-          <a href="#games" class="btn btn--primary">Explorar Jogos</a>
-          <a href="#about" class="btn btn--secondary">Saiba Mais</a>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Games Gallery Section -->
-    <section id="games" class="games">
-      <div class="games__container">
-        <h2 class="section-title">Nossos Jogos</h2>
-        <p class="section-subtitle">Escolha seu desafio e comece a jogar agora</p>
-        
-        <div class="games__grid">
-          <!-- Game Card 1: Clicker Speed -->
-          <article class="game-card" data-game="clicker" tabindex="0" role="button" aria-label="Jogar Clicker Speed - Teste sua velocidade de clique">
-            <div class="game-card__image-wrapper">
-              <img 
-                src="https://placehold.co/600x400/1a1a2e/00f3ff?text=Clicker+Speed" 
-                alt="Preview do jogo Clicker Speed com interface neon e contador" 
-                class="game-card__image"
-                loading="lazy"
-                width="600"
-                height="400"
-              />
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="settings-title">Configurações</h2>
+                <button class="btn-icon modal-close" id="settings-close" aria-label="Fechar configurações">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </div>
-            <div class="game-card__content">
-              <h3 class="game-card__title">⚡ Clicker Speed</h3>
-              <p class="game-card__description">Teste sua velocidade de clique em 10 segundos. Quanto mais rápido, melhor!</p>
-              <span class="game-card__badge">Arcade</span>
+            
+            <div class="modal-body">
+                <div class="setting-item">
+                    <label for="sound-toggle" class="setting-label">
+                        <span>Efeitos Sonoros</span>
+                        <span class="setting-desc">Ativar feedback de áudio simulado</span>
+                    </label>
+                    <button class="toggle" id="sound-toggle" role="switch" aria-checked="true">
+                        <span class="toggle-slider"></span>
+                    </button>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="contrast-toggle" class="setting-label">
+                        <span>Alto Contraste</span>
+                        <span class="setting-desc">Aumentar contraste para melhor visibilidade</span>
+                    </label>
+                    <button class="toggle" id="contrast-toggle" role="switch" aria-checked="false">
+                        <span class="toggle-slider"></span>
+                    </button>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="focus-toggle" class="setting-label">
+                        <span>Modo Foco</span>
+                        <span class="setting-desc">Reduzir animações e efeitos visuais</span>
+                    </label>
+                    <button class="toggle" id="focus-toggle" role="switch" aria-checked="false">
+                        <span class="toggle-slider"></span>
+                    </button>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="username-input" class="setting-label">
+                        <span>Nome de Usuário</span>
+                        <span class="setting-desc">Seu nome aparecerá no perfil</span>
+                    </label>
+                    <input type="text" id="username-input" class="input-field" maxlength="20" placeholder="Digite seu nome">
+                </div>
+                
+                <div class="setting-item">
+                    <button class="btn btn-danger" id="reset-data">Limpar Dados Salvos</button>
+                </div>
             </div>
-            <button class="game-card__play-btn" aria-label="Iniciar Clicker Speed">Jogar</button>
-          </article>
-          
-          <!-- Game Card 2: Memory Challenge -->
-          <article class="game-card" data-game="memory" tabindex="0" role="button" aria-label="Jogar Memory Challenge - Jogo da memória com cartas">
-            <div class="game-card__image-wrapper">
-              <img 
-                src="https://placehold.co/600x400/1a1a2e/9d4edd?text=Memory+Challenge" 
-                alt="Preview do jogo Memory Challenge com grade de cartas viradas" 
-                class="game-card__image"
-                loading="lazy"
-                width="600"
-                height="400"
-              />
-            </div>
-            <div class="game-card__content">
-              <h3 class="game-card__title">🧠 Memory Challenge</h3>
-              <p class="game-card__description">Encontre todos os pares de cartas no menor número de movimentos possível.</p>
-              <span class="game-card__badge">Puzzle</span>
-            </div>
-            <button class="game-card__play-btn" aria-label="Iniciar Memory Challenge">Jogar</button>
-          </article>
-          
-          <!-- Game Card 3: Placeholder for future expansion -->
-          <article class="game-card game-card--coming-soon" tabindex="0" aria-label="Em breve - Novo jogo em desenvolvimento">
-            <div class="game-card__image-wrapper">
-              <img 
-                src="https://placehold.co/600x400/1a1a2e/666680?text=Em+Breve" 
-                alt="Placeholder indicando novo jogo em desenvolvimento" 
-                class="game-card__image"
-                loading="lazy"
-                width="600"
-                height="400"
-              />
-            </div>
-            <div class="game-card__content">
-              <h3 class="game-card__title">🚀 Em Breve</h3>
-              <p class="game-card__description">Novo desafio em desenvolvimento. Fique de olho nas atualizações!</p>
-              <span class="game-card__badge">Novidade</span>
-            </div>
-            <button class="game-card__play-btn" disabled aria-label="Jogo em desenvolvimento">Indisponível</button>
-          </article>
         </div>
-      </div>
-    </section>
-    
-    <!-- About Section -->
-    <section id="about" class="about">
-      <div class="about__container">
-        <h2 class="section-title">Sobre a Nexus Games</h2>
-        <div class="about__content">
-          <p class="about__text">
-            A <strong>Nexus Games</strong> nasceu da paixão por criar experiências digitais envolventes e acessíveis. 
-            Nossa missão é oferecer jogos rápidos, divertidos e competitivos para jogadores de todos os níveis.
-          </p>
-          <p class="about__text">
-            Desenvolvida com foco em performance, acessibilidade e design moderno, nossa plataforma funciona 
-            perfeitamente em qualquer dispositivo, sem necessidade de downloads ou cadastros complexos.
-          </p>
-          <ul class="about__features">
-            <li>✅ 100% gratuito e sem anúncios intrusivos</li>
-            <li>✅ Acessível e otimizado para todos os dispositivos</li>
-            <li>✅ Seus recordes salvos localmente com segurança</li>
-            <li>✅ Código aberto e transparente</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-    
-    <!-- High Scores Section -->
-    <section id="scores" class="scores">
-      <div class="scores__container">
-        <h2 class="section-title">🏆 Ranking Global</h2>
-        <p class="section-subtitle">Os melhores jogadores da Nexus Games</p>
-        
-        <div class="scores__tabs" role="tablist" aria-label="Selecionar categoria de ranking">
-          <button 
-            class="scores__tab scores__tab--active" 
-            role="tab" 
-            aria-selected="true" 
-            aria-controls="clicker-scores"
-            id="tab-clicker"
-            type="button"
-          >
-            Clicker Speed
-          </button>
-          <button 
-            class="scores__tab" 
-            role="tab" 
-            aria-selected="false" 
-            aria-controls="memory-scores"
-            id="tab-memory"
-            type="button"
-            tabindex="-1"
-          >
-            Memory Challenge
-          </button>
-        </div>
-        
-        <!-- Clicker Scores Panel -->
-        <div 
-          id="clicker-scores" 
-          class="scores__panel scores__panel--active" 
-          role="tabpanel" 
-          aria-labelledby="tab-clicker"
-        >
-          <ol id="clicker-highscores" class="highscores-list" aria-label="Melhores pontuações do Clicker Speed">
-            <!-- Populated via JavaScript -->
-          </ol>
-          <p id="clicker-empty" class="highscores-empty" hidden>Nenhum recorde ainda. Seja o primeiro!</p>
-        </div>
-        
-        <!-- Memory Scores Panel -->
-        <div 
-          id="memory-scores" 
-          class="scores__panel" 
-          role="tabpanel" 
-          aria-labelledby="tab-memory"
-          hidden
-        >
-          <ol id="memory-highscores" class="highscores-list" aria-label="Melhores pontuações do Memory Challenge">
-            <!-- Populated via JavaScript -->
-          </ol>
-          <p id="memory-empty" class="highscores-empty" hidden>Nenhum recorde ainda. Seja o primeiro!</p>
-        </div>
-      </div>
-    </section>
-    
-  </main>
-  
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer__container">
-      <div class="footer__content">
-        <div class="footer__brand">
-          <span class="footer__logo-icon" aria-hidden="true">🎮</span>
-          <span class="footer__logo-text">Nexus Games</span>
-        </div>
-        <nav class="footer__nav" aria-label="Links do rodapé">
-          <a href="#hero" class="footer__link">Início</a>
-          <a href="#games" class="footer__link">Jogos</a>
-          <a href="#about" class="footer__link">Sobre</a>
-          <a href="#scores" class="footer__link">Ranking</a>
-        </nav>
-      </div>
-      <p class="footer__copyright">
-        &copy; <span id="current-year"></span> Nexus Games. Todos os direitos reservados.
-      </p>
     </div>
-  </footer>
-  
-  <!-- Game Modal Overlay -->
-  <div 
-    id="game-modal" 
-    class="modal" 
-    role="dialog" 
-    aria-modal="true" 
-    aria-hidden="true"
-    aria-labelledby="modal-title"
-  >
-    <div class="modal__overlay" tabindex="-1"></div>
-    <div class="modal__container">
-      <button 
-        class="modal__close" 
-        aria-label="Fechar jogo"
-        type="button"
-      >
-        <span aria-hidden="true">&times;</span>
-      </button>
-      
-      <div id="modal-content" class="modal__content">
-        <!-- Game content injected via JavaScript -->
-      </div>
-      
-      <div id="modal-result" class="modal__result" hidden>
-        <h3 id="modal-title" class="modal__title">Resultado</h3>
-        <p id="modal-message" class="modal__message"></p>
-        <div class="modal__actions">
-          <button id="modal-restart" class="btn btn--primary" type="button">Jogar Novamente</button>
-          <button id="modal-close" class="btn btn--secondary" type="button">Fechar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- No JavaScript Fallback -->
-  <noscript>
-    <div class="noscript-warning">
-      <p>⚠️ A Nexus Games requer JavaScript para funcionar. Por favor, habilite JavaScript no seu navegador para aproveitar os jogos.</p>
-    </div>
-  </noscript>
-  
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="script.js"></script>
 </body>
 </html>
